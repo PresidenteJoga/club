@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FC25 - Risultati Club</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header img {
+      max-height: 100px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      color: #333;
+      margin: 0;
+    }
+
+    form {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    label.checkbox-label {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    label.checkbox-label input {
+      width: auto;
+      margin-right: 8px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    .scheduled {
+      color: #888;
+      font-style: italic;
+    }
+
+    .action-btn {
+      padding: 5px 8px;
+      font-size: 0.9em;
+      margin: 2px;
+    }
+
+    .delete-btn {
+      background-color: red;
+    }
+
+    .edit-btn {
+      background-color: orange;
+    }
+
+    .player-entry {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="Logo Squadra" id="teamLogo">
+    <h1>Risultati Club FC25</h1>
+  </header>
+
+  <form id="matchForm">
+    <input type="hidden" id="editIndex">
+
+    <label>Data Partita:</label>
+    <input type="date" id="date" required>
+
+    <label>Competizione:</label>
+    <select id="competition">
+      <option value="">Seleziona</option>
+      <option value="LND">LND</option>
+      <option value="VPG">VPG</option>
+      <option value="FVPA">FVPA</option>
+    </select>
+
+    <label>Modulo di gioco:</label>
+    <input type="text" id="formation" placeholder="Es: 4-3-3">
+
+    <label>Squadra Avversaria:</label>
+    <input type="text" id="opponent">
+
+    <label>Goal Fatti:</label>
+    <input type="number" id="goalsFor">
+
+    <label>Goal Subiti:</label>
+    <input type="number" id="goalsAgainst">
+
+    <label class="checkbox-label">
+      <input type="checkbox" id="played" checked>
+      Partita giocata
+    </label>
+
+    <div id="playersStatsSection" style="display:none;">
+      <h3>Statistiche Giocatori</h3>
+      <div id="playersStatsContainer"></div>
+      <button type="button" onclick="addPlayer()">Aggiungi Giocatore</button>
+    </div>
+
+    <label>Note:</label>
+    <textarea id="notes" rows="3"></textarea>
+
+    <button type="submit">Salva Partita</button>
+  </form>
+
+  <h2>Storico Partite</h2>
+  <button onclick="clearMatches()" style="background-color: red; margin-bottom: 10px;">Cancella Tutti i Dati</button>
+
+  <table id="matchTable">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Competizione</th>
+        <th>Modulo</th>
+        <th>Avversario</th>
+        <th>Risultato</th>
+        <th>Giocatori</th>
+        <th>Note</th>
+        <th>Azioni</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const form = document.getElementById("matchForm");
+    const tableBody = document.querySelector("#matchTable tbody");
+    const playersStatsContainer = document.getElementById("playersStatsContainer");
+    const playersStatsSection = document.getElementById("playersStatsSection");
+
+    document.getElementById("played").addEventListener("change", (e) => {
+      playersStatsSection.style.display = e.target.checked ? "block" : "none";
+    });
+
+    function addPlayer(name = "", goals = "", assists = "", rating = "") {
+      const div = document.createElement("div");
+      div.className = "player-entry";
+      div.innerHTML = `
+        <input type="text" placeholder="Nome" value="${name}">
+        <input type="number" placeholder="Gol" value="${goals}">
+        <input type="number" placeholder="Assist" value="${assists}">
+        <input type="number" placeholder="Voto" step="0.1" value="${rating}">
+      `;
+      playersStatsContainer.appendChild(div);
+    }
+
+    function loadMatches() {
+      const matches = JSON.parse(localStorage.getItem("matches")) || [];
+      tableBody.innerHTML = "";
+      matches.forEach((match, index) => {
+        const result = match.played
+          ? `${match.goalsFor} - ${match.goalsAgainst}`
+          : '<span class="scheduled">In programma</span>';
+        const playerList = match.played && match.players.length
+          ? match.players.map(p => `${p.name} (G:${p.goals}, A:${p.assists}, V:${p.rating})`).join("<br>")
+          : "-";
+        tableBody.innerHTML += `
+          <tr>
+            <td>${match.date}</td>
+            <td>${match.competition}</td>
+            <td>${match.formation || "-"}</td>
+            <td>${match.opponent || "-"}</td>
+            <td>${result}</td>
+            <td>${playerList}</td>
+            <td>${match.notes || "-"}</td>
+            <td>
+              <button class="action-btn edit-btn" onclick="editMatch(${index})">✏️</button>
+              <button class="action-btn delete-btn" onclick="deleteMatch(${index})">🗑️</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function saveMatches(matches) {
+      localStorage.setItem("matches", JSON.stringify(matches));
+    }
+
+    function clearMatches() {
+      if (confirm("Sei sicuro di voler cancellare tutti i dati?")) {
+        localStorage.removeItem("matches");
+        loadMatches();
+      }
+    }
+
+    function deleteMatch(index) {
+      const matches = JSON.parse(localStorage.getItem("matches")) || [];
+      matches.splice(index, 1);
+      saveMatches(matches);
+      loadMatches();
+    }
+
+    function editMatch(index) {
+      const matches = JSON.parse(localStorage.getItem("matches")) || [];
+      const match = matches[index];
+      document.getElementById("editIndex").value = index;
+      document.getElementById("date").value = match.date;
+      document.getElementById("competition").value = match.competition;
+      document.getElementById("formation").value = match.formation || "";
+      document.getElementById("opponent").value = match.opponent;
+      document.getElementById("goalsFor").value = match.goalsFor;
+      document.getElementById("goalsAgainst").value = match.goalsAgainst;
+      document.getElementById("notes").value = match.notes;
+      document.getElementById("played").checked = match.played;
+      playersStatsSection.style.display = match.played ? "block" : "none";
+      playersStatsContainer.innerHTML = "";
+      if (match.players) {
+        match.players.forEach(p => addPlayer(p.name, p.goals, p.assists, p.rating));
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const played = document.getElementById("played").checked;
+      const date = document.getElementById("date").value;
+      const competition = document.getElementById("competition").value;
+      const opponent = document.getElementById("opponent").value.trim();
+      const goalsFor = document.getElementById("goalsFor").value;
+      const goalsAgainst = document.getElementById("goalsAgainst").value;
+
+      if (!date) {
+        alert("La data è obbligatoria.");
+        return;
+      }
+
+      if (played && (!competition || !opponent || goalsFor === "" || goalsAgainst === "")) {
+        alert("Compila tutti i campi richiesti per una partita giocata.");
+        return;
+      }
+
+      const players = [];
+      if (played) {
+        playersStatsContainer.querySelectorAll(".player-entry").forEach(entry => {
+          const [nameInput, goalsInput, assistsInput, ratingInput] = entry.querySelectorAll("input");
+          if (nameInput.value.trim()) {
+            players.push({
+              name: nameInput.value.trim(),
+              goals: parseInt(goalsInput.value) || 0,
+              assists: parseInt(assistsInput.value) || 0,
+              rating: parseFloat(ratingInput.value) || 0
+            });
+          }
+        });
+      }
+
+      const match = {
+        date,
+        competition,
+        opponent,
+        formation: document.getElementById("formation").value,
+        goalsFor,
+        goalsAgainst,
+        players,
+        notes: document.getElementById("notes").value,
+        played
+      };
+
+      const matches = JSON.parse(localStorage.getItem("matches")) || [];
+      const editIndex = document.getElementById("editIndex").value;
+
+      if (editIndex) {
+        matches[editIndex] = match;
+      } else {
+        matches.push(match);
+      }
+
+      saveMatches(matches);
+      form.reset();
+      document.getElementById("editIndex").value = "";
+      document.getElementById("played").checked = true;
+      playersStatsContainer.innerHTML = "";
+      playersStatsSection.style.display = "block";
+      loadMatches();
+    });
+
+    window.addEventListener("load", loadMatches);
+  </script>
+</body>
+</html>
